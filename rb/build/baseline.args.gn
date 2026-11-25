@@ -1,0 +1,10 @@
+is_debug = false
+is_component_build = false
+dcheck_always_on = false
+symbol_level = 0
+target_cpu = "arm64"
+use_system_xcode = true
+use_remoteexec = false
+treat_warnings_as_errors = false
+proprietary_codecs = true
+ffmpeg_branding = "Chrome"

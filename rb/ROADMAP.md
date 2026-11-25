@@ -53,10 +53,10 @@ the noise cannot be told from zero.
 
 - [x] Speedometer 3.1 harness with pinned benchmark and baseline browser.
 - [x] Noise floor of the agent VM measured (see [perf/README.md](perf/README.md)).
-- [ ] **Build Rb unmodified** from the fork point and document the exact
-      steps. Not attempted yet. Its score against Chrome for Testing shows what
-      the build configuration alone costs or gains, and it becomes the real
-      baseline for every later comparison.
+- [x] **Build Rb unmodified** from the fork point and document the exact
+      steps (see [build/README.md](build/README.md)). Its score against Chrome
+      for Testing shows what the build configuration alone costs or gains, and
+      it becomes the real baseline for every later comparison.
 - [x] **Measure on macOS.** The agent VM is now a virtual Mac; its noise
       floor is recorded in [perf/README.md](perf/README.md). A physical Mac
       has not been measured.
