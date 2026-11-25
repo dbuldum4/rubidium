@@ -61,10 +61,13 @@ interval. "Significant" means only that this interval excludes zero.
 
 ## Tracing profile
 
-`trace.py` captures one Speedometer run through the DevTools tracing endpoint
-and writes a gzip-compressed trace plus a first-pass exclusive-time summary.
-Use it for profiling only; tracing overhead means its score is not a
-performance measurement.
+`trace.py` captures one scored Speedometer iteration through the DevTools
+tracing endpoint and writes a gzip-compressed trace plus first-pass
+exclusive-time summaries. `scored_attribution` uses Speedometer's own
+`performance.measure` events to separate sync and async regions. Use it for
+profiling only; tracing overhead means its score is not a performance
+measurement. Tracing also disables Blink's innerHTML fast path, so parser time
+in a trace is necessarily pessimistic.
 
 ## Functionality smoke test
 

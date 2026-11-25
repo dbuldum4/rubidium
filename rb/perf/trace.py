@@ -73,7 +73,7 @@ def traced_events(browser, url, args):
       # compilation are important for end-to-end latency, but this profile is
       # meant to attribute the scored interaction loop.
       browser_client.call('Tracing.start', 30,
-                          categories='devtools.timeline',
+                          categories='devtools.timeline,blink.user_timing',
                           transferMode='ReportEvents')
       result = json.loads(
           page_client.evaluate(harness._RUN_JS, timeout=args.timeout,
@@ -120,6 +120,93 @@ def add_self_time(events, self_time):
       self_time[event['name']] -= child_time[id(event)]
 
 
+
+def subtract_children(events):
+  """Returns (name, start, end) leaf/self segments for nested thread slices."""
+  events = sorted(events, key=lambda item: (item['ts'], -item['dur']))
+  segments = []
+
+  def emit(node, index):
+    start, end = node['ts'], event_end(node)
+    cursor = start
+    while index < len(events):
+      child = events[index]
+      if child['ts'] >= end:
+        break
+      if child is node:
+        index += 1
+        continue
+      child_end = event_end(child)
+      if child_end <= end and child['ts'] >= cursor:
+        if child['ts'] > cursor:
+          segments.append((node['name'], cursor, child['ts']))
+        index = emit(child, index)
+        cursor = max(cursor, child_end)
+      else:
+        index += 1
+    if cursor < end:
+      segments.append((node['name'], cursor, end))
+    return index
+
+  index = 0
+  while index < len(events):
+    index = emit(events[index], index + 1)
+  return segments
+
+
+def intersect_ms(start, end, windows):
+  total = 0
+  for window_start, window_end in windows:
+    total += max(0, min(end, window_end) - max(start, window_start))
+  return total
+
+
+def scored_attribution(events):
+  pending = collections.defaultdict(list)
+  windows = {'sync': collections.defaultdict(list),
+             'async': collections.defaultdict(list)}
+  for event in sorted((e for e in events if e.get('cat') == 'blink.user_timing'),
+                      key=lambda item: item.get('ts', 0)):
+    name = event.get('name', '')
+    if not (name.endswith('-sync') or name.endswith('-async')):
+      continue
+    key = (event.get('pid'), event.get('tid'), name)
+    if event.get('ph') == 'b':
+      pending[key].append(event['ts'])
+    elif event.get('ph') == 'e' and pending[key]:
+      start = pending[key].pop(0)
+      kind = 'sync' if name.endswith('-sync') else 'async'
+      windows[kind][(event.get('pid'), event.get('tid'))].append(
+          (start, event['ts']))
+  result = {}
+  for kind, by_thread in windows.items():
+    for pid_tid, spans in by_thread.items():
+      spans.sort()
+      thread_events = [
+          event for event in events
+          if event.get('ph') == 'X' and 'ts' in event and 'dur' in event and
+          (event.get('pid'), event.get('tid')) == pid_tid
+      ]
+      attribution = collections.Counter()
+      busy = 0
+      for name, start, end in subtract_children(thread_events):
+        overlap = intersect_ms(start, end, spans)
+        if overlap:
+          attribution[name] += overlap
+          busy += overlap
+      total = sum(end - start for start, end in spans)
+      result.setdefault(kind, {
+          'measured_milliseconds': round(total / 1000, 3),
+          'attributed_busy_milliseconds': round(busy / 1000, 3),
+          'unattributed_or_idle_milliseconds': round((total - busy) / 1000, 3),
+          'self_time_by_event': [],
+      })
+      result[kind]['self_time_by_event'] = [{
+          'name': name,
+          'milliseconds': round(value / 1000, 3),
+      } for name, value in attribution.most_common(30)]
+  return result
+
 def summarize(events):
   process_names = {}
   thread_names = {}
@@ -165,6 +252,7 @@ def summarize(events):
       # These are exclusive/leaf times within nested complete slices. They are
       # the useful first-pass attribution; inclusive totals double-count nesting.
       'self_time_by_event': top(self_time),
+      'scored_attribution': scored_attribution(events),
       'count_by_event': [{
           'name': name,
           'count': count,
