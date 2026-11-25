@@ -113,3 +113,4 @@ command, result with interval, outcome.
 | Date | Change | Result | Outcome |
 | --- | --- | --- | --- |
 | 2026-11-25 | Harness A/A, Chrome for Testing 156 vs itself, 3 sessions | +2.38% ± 7.99%, -0.50% ± 15.98%, -1.25% ± 6.96% | Noise floor recorded; no engine change measured yet |
+| 2026-11-25 | Unmodified Rb baseline; `python3 rb/perf/speedometer.py compare --base cft:156.0.8078.47 --new out/Baseline/Chromium.app --runs 6 --label cft-vs-rb-baseline`; `out/rb-perf/results/20261125T054642Z-compare-cft-vs-rb-baseline/result.json` | Rb -22.61% ± 22.15% vs Chrome for Testing, 6 launches/side; nothing excluded | Baseline recorded; non-official build configuration gap detected; smoke test passed |
