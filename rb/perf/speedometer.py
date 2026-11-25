@@ -292,6 +292,7 @@ class DevTools:
     self._sock = socket.create_connection((host, int(port)))
     self._buffer = b''
     self._next_id = 0
+    self.events = []
     key = base64.b64encode(os.urandom(16)).decode()
     self._sock.sendall(
         (f'GET /{self._path} HTTP/1.1\r\nHost: {address}\r\n'
@@ -358,6 +359,7 @@ class DevTools:
     while True:
       reply = json.loads(self._read_message())
       if reply.get('id') != self._next_id:
+        self.events.append(reply)
         continue
       if 'error' in reply:
         raise RuntimeError(f'{method}: {reply["error"]}')
