@@ -51,20 +51,20 @@ Nothing else is worth doing until these are done, because gains smaller than
 the noise cannot be told from zero.
 
 - [x] Speedometer 3.1 harness with pinned benchmark and baseline browser.
-- [x] Noise floor of the agent VM measured: ±7% to ±16% at 6 launches per side.
+- [x] Noise floor of the agent VM measured (see [perf/README.md](perf/README.md)).
 - [ ] **Build Rb unmodified** from the fork point and document the exact
       steps. Not attempted yet. Its score against Chrome for Testing shows what
       the build configuration alone costs or gains, and it becomes the real
       baseline for every later comparison.
-- [ ] **Measure on macOS.** The product is macOS-only and the agent VM is a
-      GPU-less Linux guest; a gain there may not carry over, and Mac-specific
-      work cannot be measured there at all. Run the harness on a Mac and
-      record its noise floor.
-- [ ] **Reduce or route around VM noise.** Options, none tried: more launches
-      per comparison; a quieter or dedicated host; CPU pinning; adjusting for
-      recorded CPU steal. Each must be validated by A/A sessions, with all
-      sessions reported.
-- [ ] Decide whether a Linux build is kept purely as a measurement target.
+- [x] **Measure on macOS.** The agent VM is now a virtual Mac; its noise
+      floor is recorded in [perf/README.md](perf/README.md). A physical Mac
+      has not been measured.
+- [ ] **Reduce or route around VM noise.** Stopping background services on
+      the macOS VM is done (see [perf/README.md](perf/README.md)). Not tried:
+      more launches per comparison; a quieter or dedicated host; a physical
+      Mac. Each must be validated by A/A sessions, with all sessions reported.
+- [x] Decide whether a Linux build is kept purely as a measurement target: no,
+      the agent machine is macOS.
 - [ ] Define the functionality gate.
 
 Exit: an unmodified Rb build has a recorded baseline on the machine used for

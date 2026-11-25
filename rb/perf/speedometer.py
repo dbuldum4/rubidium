@@ -208,6 +208,12 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
   def log_message(self, *args):
     pass
 
+  def handle(self):
+    try:
+      super().handle()
+    except (BrokenPipeError, ConnectionResetError):
+      pass  # The browser dropped the connection, e.g. while shutting down.
+
   def end_headers(self):
     self.send_header('Cache-Control', 'no-store')
     super().end_headers()
@@ -397,18 +403,22 @@ def wait_for(predicate, timeout, what):
   raise RuntimeError(f'Timed out waiting for {what}')
 
 
+# macOS reports EPERM, not ESRCH, for a group whose members are all zombies.
+_GROUP_GONE = (ProcessLookupError, PermissionError)
+
+
 def stop_browser(proc):
   """Ends the whole browser process group and waits until it is gone."""
   for sig in (signal.SIGTERM, signal.SIGKILL):
     try:
       os.killpg(proc.pid, sig)
-    except ProcessLookupError:
+    except _GROUP_GONE:
       break
     deadline = time.monotonic() + 20
     while time.monotonic() < deadline:
       try:
         os.killpg(proc.pid, 0)
-      except ProcessLookupError:
+      except _GROUP_GONE:
         break
       proc.poll()
       time.sleep(0.1)

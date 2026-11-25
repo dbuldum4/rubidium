@@ -22,10 +22,8 @@ performance work.
 
 - Product target: macOS only. Code for other platforms may be changed or
   removed when that serves the goal.
-- Linux currently matters for one reason: the benchmark machine available to
-  agents is a Linux VM. Whether Rb keeps a Linux build for measurement is an
-  open decision (see the roadmap); do not delete Linux support until it is
-  settled.
+- The agent machine is a macOS VM (Apple M4 Pro, virtual), so building and
+  measuring happen on macOS too. No other platform is kept for measurement.
 - Large, invasive changes are welcome. Prefer the change that is right for Rb
   over the one that merges cleanly with upstream.
 
@@ -46,8 +44,11 @@ and the measured noise floor are in [rb/perf/README.md](rb/perf/README.md).
 - Compare with `compare`, never with two separate `run` invocations: on the
   agent VM absolute scores shifted by more than 10% between sessions with the
   same browser.
-- The agent VM has no GPU and loses a large share of CPU to the hypervisor.
-  Its scores say nothing about absolute speed on a Mac.
+- Before measuring, stop background load on the agent VM (booted iOS
+  simulators, Spotlight, software update) as described in
+  [rb/perf/README.md](rb/perf/README.md), and check `uptime`.
+- The agent VM is a virtual Mac. Its scores say nothing about absolute speed on
+  a physical Mac.
 
 ## Reporting a result
 

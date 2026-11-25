@@ -29,7 +29,8 @@ rb/perf/speedometer.py compare --base cft:156.0.8078.47 --new out/Release/chrome
   full Speedometer run; `--runs` (default 5) is the number of launches.
 - **No observer effect**: the harness starts the benchmark with one DevTools
   call and waits for it to resolve; it does not poll the page while it runs.
-- **Display**: on Linux, a private Xvfb server per invocation.
+- **Display**: on macOS, the logged-in desktop session; on Linux, a private
+  Xvfb server per invocation.
 
 `compare` alternates launches (base, new, base, new, ...) so that slow drift in
 the machine falls on both browsers.
@@ -46,44 +47,66 @@ The summary reports mean, median, standard deviation and a 95% Student-t
 interval per browser; `compare` adds the difference of means with a Welch 95%
 interval. "Significant" means only that this interval excludes zero.
 
+## Quiet the agent VM first
+
+The macOS agent VM boots with background work that swamps the benchmark. Before
+measuring, run:
+
+```sh
+xcrun simctl shutdown all          # the image boots two iOS simulators
+sudo mdutil -a -i off              # Spotlight indexes the Chromium tree
+sudo pkill -f UpdateBrainService   # software update preparing in the background
+uptime                             # wait until the 1-minute load is below ~5
+```
+
+Spotlight stays off once disabled. The simulators and the update service may
+return after a reboot, so check `uptime` and `ps -Ao pcpu,comm -r | head` again.
+`result.json` records the load average at the start of every launch.
+
 ## Noise floor on the agent VM
 
-Measured on the Devin Linux VM (8 vCPU, Cloud Hypervisor guest, no GPU) by
-comparing Chrome for Testing 156.0.8078.47 **against itself**, 6 launches per
-side, 10 iterations each. The true difference is zero, so the interval is the
-harness's resolution. These are all the A/A sessions that were run:
+Measured on the Devin macOS VM (Apple M4 Pro (Virtual), `VirtualMac2,1`, 12
+cores, 16 GB, macOS 26.6.2) by comparing Chrome for Testing 156.0.8078.47
+(mac-arm64) **against itself**, 6 launches per side, 10 iterations each. The
+true difference is zero, so the interval is the harness's resolution. These are
+all the A/A sessions that were run on this VM:
 
-| Session (UTC) | base mean (CV) | new mean (CV) | new vs base, 95% | CPU steal |
+| Session (UTC) | base mean (CV) | new mean (CV) | new vs base, 95% | 1-min load at launch |
 | --- | --- | --- | --- | --- |
-| 2026-11-25 01:44 | 16.41 (5.3%) | 16.80 (6.7%) | +2.38% ± 7.99% | not recorded |
-| 2026-11-25 01:53 | 15.96 (11.7%) | 15.88 (12.8%) | -0.50% ± 15.98% | not recorded |
-| 2026-11-25 02:01 | 14.06 (4.1%) | 13.89 (6.2%) | -1.25% ± 6.96% | 27–36% of busy time |
+| 2026-11-25 02:30 | 35.73 (24.9%) | 35.32 (22.2%) | -1.16% ± 30.63% | up to 91 |
+| 2026-11-25 02:39 | 41.76 (5.6%) | 41.53 (5.9%) | -0.54% ± 7.49% | 11 falling to 3 |
+| 2026-11-25 02:45 | 45.11 (7.0%) | 45.95 (3.6%) | +1.86% ± 7.60% | 1.6 to 3.5 |
 
-Between the second and third session the harness gained steal recording and
-process-group cleanup; the benchmark, flags and analysis were unchanged. Three
-sessions cannot show whether that cleanup affected the noise.
+The first session ran with two booted iOS simulators, Spotlight indexing and the
+software update service busy. Those were stopped after seeing that session's
+scores and load, and before the second session; the benchmark, flags and
+analysis were unchanged. One launch of the third session (base, 39.05, the
+first launch) is the main source of its interval; it was kept.
 
 What this means:
 
-- **With 6 launches per side this VM resolves roughly ±7% to ±16%.** Smaller
-  effects cannot be detected at that sample size.
+- **On a quiet VM, 6 launches per side resolve roughly ±7.5%.** Smaller
+  effects cannot be detected at that sample size. On a busy VM the interval
+  was ±31%.
 - **Absolute scores are not comparable across sessions.** The same browser
-  averaged about 16 in two sessions and 14 in the third. Only use differences
+  averaged about 42 and 45 in the two quiet sessions. Only use differences
   from a single `compare` invocation.
-- **The hypervisor is the main known cause.** In the one session where it was
-  recorded, 27–36% of the CPU time the guest wanted was stolen by the host, and
-  score correlated with steal at r = -0.88 over 12 launches (r = -0.79 without
-  the lowest-scoring launch). That is one session and the relationship was
-  examined after seeing the data; treat it as a lead, not an established model.
-  An earlier guess, that a background `git fetch` caused the noise, was wrong:
-  the second session ran on an idle machine and was the noisiest.
-- **Scores here are low (14–17)** because the VM rasterises in software. They
-  say nothing about absolute speed on a Mac.
+- **Scores are about 42–46**, against 14–17 on the earlier Linux VM. The VM
+  exposes a paravirtualized GPU; whether Chrome uses it was not checked. The
+  scores say nothing about absolute speed on a physical Mac.
+
+### Earlier: Linux VM
+
+Before the agent machine was macOS, the same A/A was run three times on a Linux
+VM (8 vCPU, Cloud Hypervisor guest, no GPU): +2.38% ± 7.99%, -0.50% ± 15.98%
+and -1.25% ± 6.96%, with 27–36% of busy CPU time stolen by the host in the one
+session where steal was recorded. The harness still records steal on Linux.
 
 Rough sizing, computed from the observed per-launch CV and assuming independent
 launches (session drift violates this, so take it as optimistic): at 6% CV,
-resolving ±2% needs about 70 launches per side, around 1.7 hours for both; at
-12% CV, about four times that.
+resolving ±2% needs about 70 launches per side; at 12% CV, about four times
+that. On the macOS VM one launch runs the benchmark for about 18–21 s, plus
+browser start and settle time.
 
 ## Rules for using the numbers
 
@@ -98,9 +121,7 @@ resolving ±2% needs about 70 launches per side, around 1.7 hours for both; at
 
 ## Not verified
 
-- **macOS.** The `.app` bundle handling, the `ditto` extraction of Chrome for
-  Testing and the `sysctl` machine info have never been executed. macOS is the
-  product target, so this is the most important gap.
+- **A physical Mac.** Only the macOS agent VM has been measured.
 - **An Rb build.** Only Chrome for Testing has been measured; no browser built
   from this tree has been run through the harness.
-- **GPU machines and other Linux hosts.**
+- **Whether Chrome uses the VM's paravirtualized GPU.**
