@@ -59,9 +59,6 @@ def traced_events(browser, url, args):
         json_url(port, 'json/version')['webSocketDebuggerUrl'])
     page_client = None
     try:
-      browser_client.call('Tracing.start', 30,
-                          categories='devtools.timeline',
-                          transferMode='ReportEvents')
       pages = [target for target in json_url(port, 'json/list')
                if target['type'] == 'page']
       page_client = harness.DevTools(pages[0]['webSocketDebuggerUrl'])
@@ -72,6 +69,12 @@ def traced_events(browser, url, args):
               'document.readyState === "complete" && '
               '!!globalThis.benchmarkClient'), 60, 'Speedometer to load')
       time.sleep(args.settle_seconds)
+      # Start after the benchmark harness itself has loaded. Startup parsing and
+      # compilation are important for end-to-end latency, but this profile is
+      # meant to attribute the scored interaction loop.
+      browser_client.call('Tracing.start', 30,
+                          categories='devtools.timeline',
+                          transferMode='ReportEvents')
       result = json.loads(
           page_client.evaluate(harness._RUN_JS, timeout=args.timeout,
                                await_promise=True))
