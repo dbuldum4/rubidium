@@ -1,21 +1,48 @@
-# ![Logo](chrome/app/theme/chromium/product_logo_64.png) Chromium
+# Rubidium (Rb)
 
-Chromium is an open-source browser project that aims to build a safer, faster,
-and more stable way for all users to experience the web.
+Rubidium is a macOS-only browser forked from Chromium. Its single goal is to be
+vastly faster than Chromium without losing functionality.
 
-The project's web site is https://www.chromium.org.
+- **macOS only.** Other platforms are not product targets.
+- **Ambitious by design.** Large architectural changes are in scope if they are
+  measured and keep the web working.
+- **Independent project.** Rb does not send changes to Chromium. All work lands
+  through pull requests on
+  [dbuldum4/rubidium](https://github.com/dbuldum4/rubidium).
 
-To check out the source code locally, don't use `git clone`! Instead,
-follow [the instructions on how to get the code](docs/get_the_code.md).
+## Where things are
 
-Documentation in the source is rooted in [docs/README.md](docs/README.md).
+| Path | What |
+| --- | --- |
+| [AGENTS.md](AGENTS.md) | Rules for anyone (human or agent) changing this repo |
+| [rb/ROADMAP.md](rb/ROADMAP.md) | The hillclimbing guide: how performance work is chosen, measured and landed |
+| [rb/perf/](rb/perf/README.md) | Speedometer 3.1 harness and its measured noise floor |
+| everything else | The Chromium tree at the fork point (see `chrome/VERSION`) |
 
-Learn how to [Get Around the Chromium Source Code Directory
-Structure](https://www.chromium.org/developers/how-tos/getting-around-the-chrome-source-code).
+Rb-specific files live under `rb/`. Chromium's own documentation is still rooted
+at [docs/README.md](docs/README.md).
 
-For historical reasons, there are some small top level directories. Now the
-guidance is that new top level directories are for product (e.g. Chrome,
-Android WebView, Ash). Even if these products have multiple executables, the
-code should be in subdirectories of the product.
+## Measuring
 
-If you found a bug, please file it at https://crbug.com/new.
+```sh
+# Baseline: a pinned Chrome for Testing build, downloaded on first use.
+rb/perf/speedometer.py run --browser cft:156.0.8078.47
+
+# A/B: alternate launches of two browsers and report the difference.
+rb/perf/speedometer.py compare --base <browser> --new <browser>
+```
+
+Read [rb/perf/README.md](rb/perf/README.md) before trusting a number.
+
+## Building
+
+Rb has not been built from this fork yet; there are no Rb-specific build
+instructions that have been exercised. Chromium's instructions for the fork
+point are in [docs/mac_build_instructions.md](docs/mac_build_instructions.md).
+Establishing and documenting the build is the first item in the
+[roadmap](rb/ROADMAP.md).
+
+## License
+
+BSD-style, see [LICENSE](LICENSE). Rubidium is not affiliated with Google or the
+Chromium project.
