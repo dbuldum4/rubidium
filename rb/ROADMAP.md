@@ -36,10 +36,11 @@ measured.
 ## Gates
 
 - **Speed**: Speedometer 3.1 score, base versus new.
-- **Functionality**: not yet defined. Chromium's own suites (web tests,
-  `content_browsertests`, unit tests for the touched code) are the obvious
-  candidates, but none has been run in this fork and the required set is an
-  open decision.
+- **Functionality**: the minimum gate is that `rb/perf/smoke.py` passes on the
+  candidate browser. Targeted Chromium unit/browser tests for the touched code
+  are required when they exist and are practical to run. Chromium's web tests
+  and `content_browsertests` have not yet been run in this fork; the smoke test
+  is a floor, not evidence of full web compatibility.
 - **Proposed guardrails, not yet adopted**: a second benchmark family so that
   Speedometer gains are not bought elsewhere (JetStream, MotionMark, page
   load, memory, startup). Which of these bind is a decision for the project
@@ -65,7 +66,8 @@ the noise cannot be told from zero.
       Mac. Each must be validated by A/A sessions, with all sessions reported.
 - [x] Decide whether a Linux build is kept purely as a measurement target: no,
       the agent machine is macOS.
-- [ ] Define the functionality gate.
+- [x] Define the minimum functionality gate (`rb/perf/smoke.py`; broader
+      Chromium suites remain open).
 
 Exit: an unmodified Rb build has a recorded baseline on the machine used for
 decisions, and that machine's A/A interval is known and small enough for the

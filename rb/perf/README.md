@@ -9,6 +9,7 @@ protocol, so it needs no chromedriver and no virtualenv.
 rb/perf/speedometer.py setup   --browser cft:156.0.8078.47   # fetch only
 rb/perf/speedometer.py run     --browser cft:156.0.8078.47
 rb/perf/speedometer.py compare --base cft:156.0.8078.47 --new out/Release/chrome
+rb/perf/smoke.py       --browser out/Release/chrome
 ```
 
 `--browser`, `--base` and `--new` accept a binary, a macOS `.app` bundle, or
@@ -46,6 +47,15 @@ session keeps what it measured.
 The summary reports mean, median, standard deviation and a 95% Student-t
 interval per browser; `compare` adds the difference of means with a Welch 95%
 interval. "Significant" means only that this interval excludes zero.
+
+## Functionality smoke test
+
+`smoke.py` launches one browser and checks representative web platform behavior:
+DOM and CSS layout, JavaScript, WebAssembly, canvas 2D, WebGL, workers,
+WebCrypto, storage, and MP4/WebM capability detection. It exits nonzero if any
+check fails. Passing it is the minimum functionality gate for a performance
+candidate; it is not a substitute for Chromium's web-platform tests or targeted
+tests for the touched code.
 
 ## Quiet the agent VM first
 
