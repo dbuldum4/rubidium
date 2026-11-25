@@ -49,7 +49,9 @@ commit, and the summary. It is rewritten after every launch, so an interrupted
 session keeps what it measured.
 
 The summary reports mean, median, standard deviation and a 95% Student-t
-interval per browser; `compare` adds the difference of means with a Welch 95%
+interval per browser. `compare` pairs launches by iteration and analyses the
+log of each pair's score ratio (`new / base`), because machine drift scales
+throughput multiplicatively; it reports the exact endpoints of the 95%
 interval. "Significant" means only that this interval excludes zero.
 
 ## Functionality smoke test
@@ -82,8 +84,11 @@ return after a reboot, so check `uptime` and `ps -Ao pcpu,comm -r | head` again.
 Measured on the Devin macOS VM (Apple M4 Pro (Virtual), `VirtualMac2,1`, 12
 cores, 16 GB, macOS 26.6.2) by comparing Chrome for Testing 156.0.8078.47
 (mac-arm64) **against itself**, 6 launches per side, 10 iterations each. The
-true difference is zero, so the interval is the harness's resolution. These are
-all the A/A sessions that were run on this VM:
+true difference is zero, so the interval is the harness's resolution. These
+sessions predate the paired log-ratio analysis and used independent-sample
+Welch intervals; they are kept as background-load evidence, not as the current
+estimator's noise floor. These are all the A/A sessions that were run on this
+VM under that analysis:
 
 | Session (UTC) | base mean (CV) | new mean (CV) | new vs base, 95% | 1-min load at launch |
 | --- | --- | --- | --- | --- |
@@ -99,9 +104,10 @@ first launch) is the main source of its interval; it was kept.
 
 What this means:
 
-- **On a quiet VM, 6 launches per side resolve roughly ±7.5%.** Smaller
-  effects cannot be detected at that sample size. On a busy VM the interval
-  was ±31%.
+- **On a quiet VM, the old estimator resolved roughly ±7.5% with 6 launches
+  per side.** The paired estimator still needs fresh A/A validation; until
+  then use ±7.5% as a conservative planning interval. On a busy VM the old
+  interval was ±31%.
 - **Absolute scores are not comparable across sessions.** The same browser
   averaged about 42 and 45 in the two quiet sessions. Only use differences
   from a single `compare` invocation.

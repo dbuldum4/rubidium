@@ -102,21 +102,47 @@ def summarize(values):
   }
 
 
-def welch(base, new):
-  """Difference of means (new - base) with a Welch 95% interval."""
-  b, n = summarize(base), summarize(new)
-  diff = n['mean'] - b['mean']
-  result = {'diff': diff, 'diff_percent': 100 * diff / b['mean']}
-  vb, vn = b['stdev']**2 / b['n'], n['stdev']**2 / n['n']
-  if b['n'] < 2 or n['n'] < 2 or vb + vn == 0:
-    return {**result, 'ci95': math.nan, 'significant': False}
-  df = (vb + vn)**2 / (vb**2 / (b['n'] - 1) + vn**2 / (n['n'] - 1))
-  ci = t95(df) * math.sqrt(vb + vn)
+def paired_log_delta(base, new):
+  """Paired log-score ratio (new / base) with a Student-t 95% interval.
+
+  Scores are throughputs: slow machine drift scales both browsers
+  multiplicatively. Pairing launches and analysing log ratios cancels that
+  drift much better than treating the absolute scores as independent samples.
+  """
+  pairs = min(len(base), len(new))
+  base, new = base[:pairs], new[:pairs]
+  arithmetic_diff = statistics.fmean(new) - statistics.fmean(base)
+  result = {
+      'method': 'paired_t_log_score_ratio',
+      'pairs': pairs,
+      'diff': arithmetic_diff,
+  }
+  if pairs < 2:
+    return {
+        **result,
+        'diff_percent': math.nan,
+        'ci95': math.nan,
+        'ci95_percent': math.nan,
+        'ci95_lower_percent': math.nan,
+        'ci95_upper_percent': math.nan,
+        'significant': False,
+    }
+  log_ratios = [math.log(n / b) for b, n in zip(base, new)]
+  center = statistics.fmean(log_ratios)
+  ci = t95(pairs - 1) * statistics.stdev(log_ratios) / math.sqrt(pairs)
+  lower, upper = center - ci, center + ci
+  center_percent = 100 * (math.exp(center) - 1)
+  lower_percent = 100 * (math.exp(lower) - 1)
+  upper_percent = 100 * (math.exp(upper) - 1)
   return {
       **result,
+      'diff_percent': center_percent,
       'ci95': ci,
-      'ci95_percent': 100 * ci / b['mean'],
-      'significant': abs(diff) > ci,
+      'ci95_percent': max(center_percent - lower_percent,
+                          upper_percent - center_percent),
+      'ci95_lower_percent': lower_percent,
+      'ci95_upper_percent': upper_percent,
+      'significant': lower > 0 or upper < 0,
   }
 
 
@@ -650,11 +676,13 @@ def main():
   for name, values in scores.items():
     print_summary(f'{name} ({specs[name]})', values)
   if args.command == 'compare':
-    delta = welch(scores['base'], scores['new'])
+    delta = paired_log_delta(scores['base'], scores['new'])
     report['summary']['delta'] = delta
     verdict = 'significant' if delta['significant'] else 'not significant'
     print(f'new vs base: {delta["diff_percent"]:+.2f}% '
-          f'± {delta.get("ci95_percent", math.nan):.2f}% ({verdict} at 95%)')
+          f'[{delta["ci95_lower_percent"]:+.2f}%, '
+          f'{delta["ci95_upper_percent"]:+.2f}%] '
+          f'({verdict} at 95%, paired log ratio)')
   (result_dir / 'result.json').write_text(json.dumps(report, indent=1))
   print(f'\nWrote {result_dir / "result.json"}')
 
