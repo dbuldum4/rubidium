@@ -10,6 +10,7 @@ rb/perf/speedometer.py setup   --browser cft:156.0.8078.47   # fetch only
 rb/perf/speedometer.py run     --browser cft:156.0.8078.47
 rb/perf/speedometer.py compare --base cft:156.0.8078.47 --new out/Release/chrome
 rb/perf/smoke.py       --browser out/Release/chrome
+rb/perf/trace.py       --browser out/Release/chrome
 rb/perf/workload_summary.py out/rb-perf/results/<run>/result.json new
 ```
 
@@ -57,6 +58,13 @@ interval per browser. `compare` pairs launches by iteration and analyses the
 log of each pair's score ratio (`new / base`), because machine drift scales
 throughput multiplicatively; it reports the exact endpoints of the 95%
 interval. "Significant" means only that this interval excludes zero.
+
+## Tracing profile
+
+`trace.py` captures one Speedometer run through the DevTools tracing endpoint
+and writes a gzip-compressed trace plus a first-pass exclusive-time summary.
+Use it for profiling only; tracing overhead means its score is not a
+performance measurement.
 
 ## Functionality smoke test
 
