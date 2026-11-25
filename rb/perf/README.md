@@ -106,10 +106,14 @@ first launch) is the main source of its interval; it was kept.
 
 What this means:
 
-- **On a quiet VM, the old estimator resolved roughly ±7.5% with 6 launches
-  per side.** The paired estimator still needs fresh A/A validation; until
-  then use ±7.5% as a conservative planning interval. On a busy VM the old
-  interval was ±31%.
+- **The old Welch estimator resolved roughly ±7.5% with 6 launches per side**
+  in those sessions. With randomized ordering, one warmup pair, and the paired
+  estimator, a later identical-binary session had a wide interval of
+  [-2.66%, +11.59%] after starting only ten minutes after VM boot. With three
+  warmup pairs on a warm VM, two identical-binary sessions measured +0.12%
+  [-2.16%, +2.46%] and -0.60% [-4.36%, +3.31%]. Plan on roughly ±2-4% at 6
+  scored launches per side and use more launches for smaller expected effects.
+  On a busy VM the old interval was ±31%.
 - **Absolute scores are not comparable across sessions.** The same browser
   averaged about 42 and 45 in the two quiet sessions. Only use differences
   from a single `compare` invocation.
