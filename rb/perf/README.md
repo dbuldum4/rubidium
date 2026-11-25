@@ -35,8 +35,9 @@ rb/perf/smoke.py       --browser out/Release/chrome
 - **Display**: on macOS, the logged-in desktop session; on Linux, a private
   Xvfb server per invocation.
 
-`compare` alternates launches (base, new, base, new, ...) so that slow drift in
-the machine falls on both browsers.
+`compare` interleaves launches and alternates which browser starts each pair
+(base/new, new/base, ...) so that slow drift in the machine does not always
+favor the browser in the later slot.
 
 ## Output
 

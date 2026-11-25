@@ -628,14 +628,20 @@ def main():
             f'load {result["loadavg_before"]:.2f}{steal_text})', flush=True)
       (result_dir / 'result.json').write_text(json.dumps(report, indent=1))
 
+    def launch_order(iteration):
+      # Alternate the browser that starts each pair (AB, BA, AB, BA). Strict
+      # ABAB ordering would always put base in the earlier slot and turn
+      # monotonic machine drift into a systematic advantage for new.
+      items = list(binaries.items())
+      return items if iteration % 2 == 0 else list(reversed(items))
+
     for i in range(args.warmup_runs):
-      for name, binary in binaries.items():
+      for name, binary in launch_order(i):
         record_result(name, run_once(binary, url, args, env), i,
                       args.warmup_runs, warmup=True)
 
     for i in range(args.runs):
-      # Alternating launches spreads machine drift evenly over both browsers.
-      for name, binary in binaries.items():
+      for name, binary in launch_order(i):
         record_result(name, run_once(binary, url, args, env), i, args.runs)
 
   scores = {k: [r['score'] for r in v] for k, v in runs.items()}
