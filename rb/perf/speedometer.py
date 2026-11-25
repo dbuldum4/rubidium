@@ -539,6 +539,9 @@ def main():
   common = argparse.ArgumentParser(add_help=False)
   common.add_argument('--runs', type=int, default=5,
                       help='browser launches per browser (default 5)')
+  common.add_argument('--warmup-runs', type=int, default=0,
+                      help='unscored warmup launches per browser (default 0); '
+                      'recorded separately and excluded from the summary')
   common.add_argument('--iterations', type=int, default=10,
                       help='Speedometer iterationCount (default 10, the '
                       'official value)')
@@ -589,6 +592,7 @@ def main():
                                         sys.platform.startswith('linux'))
   env = dict(os.environ)
   runs = {k: [] for k in binaries}
+  warmup_runs = {k: [] for k in binaries}
   report = {
       'benchmark': 'Speedometer 3.1',
       'speedometer_revision': revision,
@@ -601,6 +605,7 @@ def main():
       'source': source_info(),
       'browsers': {k: {'spec': specs[k], 'binary': str(binaries[k])}
                    for k in binaries},
+      'warmup_runs': warmup_runs,
       'runs': runs,
   }
 
@@ -610,17 +615,28 @@ def main():
       env['DISPLAY'] = display
       env.pop('WAYLAND_DISPLAY', None)
     url = f'{origin}/?iterationCount={args.iterations}'
+
+    def record_result(name, result, index, total, warmup=False):
+      destination = warmup_runs if warmup else runs
+      destination[name].append(result)
+      steal = result['host_cpu'].get('steal_of_busy_percent')
+      steal_text = '' if steal is None else f', steal {steal:.1f}%'
+      label = (f'[warmup {index + 1}/{total}]' if warmup else
+               f'[{index + 1}/{total}]')
+      print(f'{label} {name}: {result["score"]:.2f} '
+            f'({result["browser_version"]}, {result["duration_seconds"]}s, '
+            f'load {result["loadavg_before"]:.2f}{steal_text})', flush=True)
+      (result_dir / 'result.json').write_text(json.dumps(report, indent=1))
+
+    for i in range(args.warmup_runs):
+      for name, binary in binaries.items():
+        record_result(name, run_once(binary, url, args, env), i,
+                      args.warmup_runs, warmup=True)
+
     for i in range(args.runs):
       # Alternating launches spreads machine drift evenly over both browsers.
       for name, binary in binaries.items():
-        result = run_once(binary, url, args, env)
-        runs[name].append(result)
-        steal = result['host_cpu'].get('steal_of_busy_percent')
-        steal_text = '' if steal is None else f', steal {steal:.1f}%'
-        print(f'[{i + 1}/{args.runs}] {name}: {result["score"]:.2f} '
-              f'({result["browser_version"]}, {result["duration_seconds"]}s, '
-              f'load {result["loadavg_before"]:.2f}{steal_text})', flush=True)
-        (result_dir / 'result.json').write_text(json.dumps(report, indent=1))
+        record_result(name, run_once(binary, url, args, env), i, args.runs)
 
   scores = {k: [r['score'] for r in v] for k, v in runs.items()}
   report['summary'] = {k: summarize(v) for k, v in scores.items()}

@@ -27,7 +27,9 @@ rb/perf/smoke.py       --browser out/Release/chrome
   services; none changes how the engine runs the benchmark. Extra flags given
   with `--browser-arg` apply to every browser and are recorded.
 - **Workload**: `iterationCount=10`, Speedometer's default. One launch is one
-  full Speedometer run; `--runs` (default 5) is the number of launches.
+  full Speedometer run; `--runs` (default 5) is the number of scored launches.
+  `--warmup-runs` can add unscored launches, which are recorded separately and
+  never included in the summary.
 - **No observer effect**: the harness starts the benchmark with one DevTools
   call and waits for it to resolve; it does not poll the page while it runs.
 - **Display**: on macOS, the logged-in desktop session; on Linux, a private
