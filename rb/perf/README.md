@@ -10,6 +10,7 @@ rb/perf/speedometer.py setup   --browser cft:156.0.8078.47   # fetch only
 rb/perf/speedometer.py run     --browser cft:156.0.8078.47
 rb/perf/speedometer.py compare --base cft:156.0.8078.47 --new out/Release/chrome
 rb/perf/smoke.py       --browser out/Release/chrome
+rb/perf/workload_summary.py out/rb-perf/results/<run>/result.json new
 ```
 
 `--browser`, `--base` and `--new` accept a binary, a macOS `.app` bundle, or
