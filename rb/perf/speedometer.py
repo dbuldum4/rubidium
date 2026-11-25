@@ -24,6 +24,7 @@ import math
 import os
 import pathlib
 import platform
+import random
 import shutil
 import signal
 import socket
@@ -580,6 +581,9 @@ def main():
                       default='auto',
                       help='auto: private Xvfb on Linux, native elsewhere')
   common.add_argument('--settle-seconds', type=float, default=3)
+  common.add_argument('--seed', type=int,
+                      help='seed for randomized compare ordering; default is '
+                      'fresh randomness, recorded in result.json')
   common.add_argument('--timeout', type=float, default=1800,
                       help='seconds allowed for one Speedometer run')
   run = sub.add_parser('run', parents=[common], help='measure one browser')
@@ -654,20 +658,38 @@ def main():
             f'load {result["loadavg_before"]:.2f}{steal_text})', flush=True)
       (result_dir / 'result.json').write_text(json.dumps(report, indent=1))
 
-    def launch_order(iteration):
-      # Alternate the browser that starts each pair (AB, BA, AB, BA). Strict
-      # ABAB ordering would always put base in the earlier slot and turn
-      # monotonic machine drift into a systematic advantage for new.
-      items = list(binaries.items())
-      return items if iteration % 2 == 0 else list(reversed(items))
+    seed = (args.seed if args.seed is not None else
+            int.from_bytes(os.urandom(8), 'big'))
+    rng = random.Random(seed)
+    report['order_random_seed'] = seed
+    report['warmup_pair_orders'] = []
+    report['pair_orders'] = []
 
-    for i in range(args.warmup_runs):
-      for name, binary in launch_order(i):
+    def launch_order(base_first):
+      items = list(binaries.items())
+      return items if base_first else list(reversed(items))
+
+    # Randomize which browser starts each pair, while keeping the number of
+    # base-first pairs balanced. A deterministic AB/BA pattern can itself line
+    # up with periodic machine noise; randomization turns positional noise
+    # into error rather than systematic bias.
+    scored_base_first = [True] * ((args.runs + 1) // 2) + [False] * (
+        args.runs // 2)
+    rng.shuffle(scored_base_first)
+    warmup_base_first = [rng.choice((True, False))
+                         for _ in range(args.warmup_runs)]
+
+    for i, base_first in enumerate(warmup_base_first):
+      order = launch_order(base_first)
+      report['warmup_pair_orders'].append([name for name, _ in order])
+      for name, binary in order:
         record_result(name, run_once(binary, url, args, env), i,
                       args.warmup_runs, warmup=True)
 
-    for i in range(args.runs):
-      for name, binary in launch_order(i):
+    for i, base_first in enumerate(scored_base_first):
+      order = launch_order(base_first)
+      report['pair_orders'].append([name for name, _ in order])
+      for name, binary in order:
         record_result(name, run_once(binary, url, args, env), i, args.runs)
 
   scores = {k: [r['score'] for r in v] for k, v in runs.items()}

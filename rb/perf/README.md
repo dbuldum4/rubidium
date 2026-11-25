@@ -36,9 +36,11 @@ rb/perf/workload_summary.py out/rb-perf/results/<run>/result.json new
 - **Display**: on macOS, the logged-in desktop session; on Linux, a private
   Xvfb server per invocation.
 
-`compare` interleaves launches and alternates which browser starts each pair
-(base/new, new/base, ...) so that slow drift in the machine does not always
-favor the browser in the later slot.
+`compare` interleaves launches in pairs and randomizes which browser starts
+each pair, with the number of base-first pairs balanced. The random seed and
+actual order are recorded in `result.json`; pass `--seed` to reproduce an
+order. Randomized ordering keeps periodic machine noise from lining up with a
+fixed browser order.
 
 ## Output
 
