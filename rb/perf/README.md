@@ -45,10 +45,12 @@ fixed browser order.
 ## Output
 
 `out/rb-perf/results/<UTC time>-<command>[-label]/result.json` contains every
-launch (score, per-iteration scores, every Speedometer metric, duration, load
-average, host CPU steal on Linux), the browser versions, flags, machine, source
-commit, and the summary. It is rewritten after every launch, so an interrupted
-session keeps what it measured.
+launch (score, per-iteration scores, every Speedometer metric, benchmark
+duration, launch-to-result and navigation-to-load wall time, summed process-group
+RSS, load average, host CPU steal on Linux), the browser versions, flags,
+machine, source commit, and the summary. RSS double-counts pages shared between
+browser processes, so use it only for same-workload comparisons. The file is
+rewritten after every launch, so an interrupted session keeps what it measured.
 
 The summary reports mean, median, standard deviation and a 95% Student-t
 interval per browser. `compare` pairs launches by iteration and analyses the

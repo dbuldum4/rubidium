@@ -434,6 +434,29 @@ def wait_for(predicate, timeout, what):
 _GROUP_GONE = (ProcessLookupError, PermissionError)
 
 
+def process_group_memory_bytes(pid):
+  """Resident memory summed over a browser process group, if ps supports it."""
+  try:
+    out = subprocess.run(('ps', '-Ao', 'pid=,pgid=,rss='),
+                         capture_output=True, text=True, check=True).stdout
+  except (OSError, subprocess.CalledProcessError):
+    return None
+  total = 0
+  seen = set()
+  for line in out.splitlines():
+    fields = line.split()
+    if len(fields) != 3:
+      continue
+    try:
+      process, group, rss_kib = map(int, fields)
+    except ValueError:
+      continue
+    if group == pid and process not in seen:
+      seen.add(process)
+      total += rss_kib * 1024
+  return total if seen else None
+
+
 def stop_browser(proc):
   """Ends the whole browser process group and waits until it is gone."""
   for sig in (signal.SIGTERM, signal.SIGKILL):
@@ -460,6 +483,7 @@ def run_once(binary, url, args, env):
   profile = pathlib.Path(tempfile.mkdtemp(prefix='rb-perf-profile-'))
   cmd = [str(binary), *BROWSER_FLAGS, f'--user-data-dir={profile}',
          *args.browser_arg, 'about:blank']
+  process_started = time.monotonic()
   proc = subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL,
                           stderr=subprocess.DEVNULL, start_new_session=True)
   try:
@@ -482,11 +506,13 @@ def run_once(binary, url, args, env):
     try:
       version = devtools.call('Browser.getVersion', 30)
       devtools.call('Page.enable', 30)
+      navigation_started = time.monotonic()
       devtools.call('Page.navigate', 30, url=url)
       wait_for(
           lambda: devtools.evaluate(
               'document.readyState === "complete" && '
               '!!globalThis.benchmarkClient'), 60, 'Speedometer to load')
+      load_duration = time.monotonic() - navigation_started
       time.sleep(args.settle_seconds)
       load_before = os.getloadavg()[0]
       cpu_before = cpu_times()
@@ -495,6 +521,8 @@ def run_once(binary, url, args, env):
           devtools.evaluate(_RUN_JS, timeout=args.timeout,
                             await_promise=True))
       duration = time.monotonic() - started
+      total_duration = time.monotonic() - process_started
+      memory_bytes = process_group_memory_bytes(proc.pid)
       cpu = cpu_delta(cpu_before, cpu_times())
     finally:
       devtools.close()
@@ -508,6 +536,9 @@ def run_once(binary, url, args, env):
       'score': metrics['Score']['mean'],
       'iteration_scores': metrics['Score']['values'],
       'duration_seconds': round(duration, 1),
+      'launch_to_result_seconds': round(total_duration, 1),
+      'navigation_to_load_seconds': round(load_duration, 1),
+      'browser_rss_bytes': memory_bytes,
       'loadavg_before': load_before,
       'host_cpu': cpu,
       'browser_version': version['product'],
