@@ -73,7 +73,7 @@ def traced_events(browser, url, args):
       # compilation are important for end-to-end latency, but this profile is
       # meant to attribute the scored interaction loop.
       browser_client.call('Tracing.start', 30,
-                          categories='devtools.timeline,blink.user_timing',
+                          categories='devtools.timeline,blink.user_timing,blink,blink_style',
                           transferMode='ReportEvents')
       result = json.loads(
           page_client.evaluate(harness._RUN_JS, timeout=args.timeout,
